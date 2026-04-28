@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Diagramas — Lendera Microfrontends</title>
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: #0f172a;
+      color: #e2e8f0;
+      padding: 2rem;
+    }
+
+    h1 {
+      text-align: center;
+      font-size: 1.8rem;
+      font-weight: 700;
+      margin-bottom: 0.4rem;
+      color: #f8fafc;
+    }
+
+    .subtitle {
+      text-align: center;
+      color: #94a3b8;
+      margin-bottom: 2.5rem;
+      font-size: 0.95rem;
+    }
+
+    .diagrams-grid {
+      display: flex;
+      flex-direction: column;
+      gap: 2.5rem;
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+
+    .card {
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 12px;
+      overflow: hidden;
+    }
+
+    .card-header {
+      padding: 1rem 1.5rem;
+      background: #0f172a;
+      border-bottom: 1px solid #334155;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .card-header .num {
+      background: #3b82f6;
+      color: white;
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.8rem;
+      font-weight: 700;
+      flex-shrink: 0;
+    }
+
+    .card-header h2 {
+      font-size: 1.05rem;
+      font-weight: 600;
+      color: #f1f5f9;
+    }
+
+    .card-header p {
+      font-size: 0.82rem;
+      color: #64748b;
+      margin-top: 0.1rem;
+    }
+
+    .card-body {
+      padding: 1.5rem;
+      overflow-x: auto;
+    }
+
+    .mermaid {
+      display: flex;
+      justify-content: center;
+    }
+
+    .mermaid svg {
+      max-width: 100%;
+      height: auto;
+    }
+  </style>
+</head>
+<body>
+
+<h1>Lendera — Arquitectura Microfrontends</h1>
+<p class="subtitle">5 diagramas para entender el sistema desde lo general hasta el detalle</p>
+
+<div class="diagrams-grid">
+
+  <!-- 1. Visión general -->
+  <div class="card">
+    <div class="card-header">
+      <div class="num">1</div>
+      <div>
+        <h2>Visión general del sistema</h2>
+        <p>Cómo conviven el shell y los 5 microfrontends en tiempo de ejecución</p>
+      </div>
+    </div>
+    <div class="card-body">
+      <div class="mermaid">
+graph TB
+    subgraph BROWSER["🌐  Navegador — http://localhost:3000"]
+      direction TB
+
+      subgraph SHELL["Shell (puerto 3000) — Orquestador"]
+        direction LR
+        STORE["LenderaStore\n(estado global)"]
+        DISPATCH["Dispatcher\n(Flux)"]
+        BRIDGE["Event Bridge\n(window events)"]
+        STORE --> DISPATCH
+        DISPATCH --> STORE
+        STORE -->|"lendera:state"| BRIDGE
+        BRIDGE -->|"lendera:action"| DISPATCH
+      end
+
+      subgraph MFS["Microfrontends — cargados con Module Federation"]
+        AUTH["mf-auth\n:3001\nLoginPanel"]
+        ONB["mf-onboarding\n:3002\nPersonalDataStep"]
+        KYC["mf-kyc\n:3003\nKycStep"]
+        DOCS["mf-documents\n:3004\nDocumentsStep"]
+        CREDIT["mf-credit\n:3005\nResultStep"]
+      end
+    end
+
+    BRIDGE <-->|"CustomEvents\nwindow"| AUTH
+    BRIDGE <-->|"CustomEvents\nwindow"| ONB
+    BRIDGE <-->|"CustomEvents\nwindow"| KYC
+    BRIDGE <-->|"CustomEvents\nwindow"| DOCS
+    BRIDGE <-->|"CustomEvents\nwindow"| CREDIT
+
+    classDef shell fill:#1e3a5f,stroke:#3b82f6,color:#e0f2fe
+    classDef mf fill:#1a2e1a,stroke:#22c55e,color:#dcfce7
+    classDef bridge fill:#3b1f5e,stroke:#a855f7,color:#f3e8ff
+
+    class STORE,DISPATCH shell
+    class BRIDGE bridge
+    class AUTH,ONB,KYC,DOCS,CREDIT mf
+      </div>
+    </div>
+  </div>
+
+  <!-- 2. Module Federation -->
+  <div class="card">
+    <div class="card-header">
+      <div class="num">2</div>
+      <div>
+        <h2>Module Federation — carga de módulos remotos</h2>
+        <p>Cómo el shell descarga y monta cada componente en tiempo de ejecución</p>
+      </div>
+    </div>
+    <div class="card-body">
+      <div class="mermaid">
+sequenceDiagram
+    participant U as Usuario
+    participant SH as Shell :3000
+    participant A as mf-auth :3001
+    participant O as mf-onboarding :3002
+    participant K as mf-kyc :3003
+    participant D as mf-documents :3004
+    participant C as mf-credit :3005
+
+    U->>SH: Abre localhost:3000
+    SH->>SH: React.lazy() + Suspense
+    Note over SH: Muestra spinner mientras carga
+
+    SH->>A: GET /assets/remoteEntry.js
+    A-->>SH: expone ./LoginPanel
+    SH->>SH: Monta &lt;LoginPanel /&gt;
+
+    Note over U,SH: Usuario avanza al paso 2
+
+    SH->>O: GET /assets/remoteEntry.js
+    O-->>SH: expone ./PersonalDataStep
+    SH->>SH: Monta &lt;PersonalDataStep /&gt;
+
+    Note over U,SH: Usuario avanza al paso 3
+
+    SH->>K: GET /assets/remoteEntry.js
+    K-->>SH: expone ./KycStep
+    SH->>SH: Monta &lt;KycStep /&gt;
+
+    Note over U,SH: Usuario avanza al paso 4
+
+    SH->>D: GET /assets/remoteEntry.js
+    D-->>SH: expone ./DocumentsStep
+    SH->>SH: Monta &lt;DocumentsStep /&gt;
+
+    Note over U,SH: Usuario avanza al paso 5
+
+    SH->>C: GET /assets/remoteEntry.js
+    C-->>SH: expone ./ResultStep
+    SH->>SH: Monta &lt;ResultStep /&gt;
+      </div>
+    </div>
+  </div>
+
+  <!-- 3. Flujo de eventos Flux -->
+  <div class="card">
+    <div class="card-header">
+      <div class="num">3</div>
+      <div>
+        <h2>Flujo de comunicación — Flux + Event Bus</h2>
+        <p>Cómo un microfrontend dispara una acción y todos reciben el nuevo estado</p>
+      </div>
+    </div>
+    <div class="card-body">
+      <div class="mermaid">
+sequenceDiagram
+    participant MF as Microfrontend\n(cualquiera)
+    participant WE as window\n(Event Bus)
+    participant EB as eventBridge.js
+    participant DI as Dispatcher
+    participant ST as LenderaStore
+    participant AC as lenderaActions
+
+    MF->>WE: dispatchEvent('lendera:action')\n{ type, payload }
+
+    WE->>EB: escucha 'lendera:action'
+    EB->>DI: dispatcher.dispatch(action)
+    DI->>ST: notifica a todos los handlers
+
+    alt Acción con efecto async
+      ST->>AC: llama a startKyc() / uploadDocument()
+      AC->>AC: setTimeout 1400ms
+      AC->>DI: dispatch KYC_SUCCESS / ERROR
+      DI->>ST: actualiza kycStatus
+    else Acción sincrónica
+      ST->>ST: muta estado inmediatamente
+    end
+
+    ST->>EB: notifica cambio (useSyncExternalStore)
+    EB->>WE: dispatchEvent('lendera:state')\n{ ...fullState }
+    WE->>MF: todos los MFs reciben nuevo estado
+    MF->>MF: re-render con estado actualizado
+      </div>
+    </div>
+  </div>
+
+  <!-- 4. Flujo de usuario -->
+  <div class="card">
+    <div class="card-header">
+      <div class="num">4</div>
+      <div>
+        <h2>Flujo del usuario (happy path y errores)</h2>
+        <p>Journey completo desde login hasta la decisión de crédito</p>
+      </div>
+    </div>
+    <div class="card-body">
+      <div class="mermaid">
+flowchart TD
+    START([" Abre la app"]) --> S1
+
+    subgraph STEP1["Paso 1 — mf-auth  (Login)"]
+      S1["Ingresa nombre de usuario"]
+      S1A["Emite LOGIN_SUCCESS"]
+      S1 --> S1A
+    end
+
+    S1A --> S2
+
+    subgraph STEP2["Paso 2 — mf-onboarding  (Datos personales)"]
+      S2["Llena: nombre, ID, ingreso, monto"]
+      S2A["Emite SAVE_PERSONAL_DATA"]
+      S2 --> S2A
+    end
+
+    S2A --> S3
+
+    subgraph STEP3["Paso 3 — mf-kyc  (Validación KYC)"]
+      S3["Clic en Ejecutar KYC"]
+      S3B["Shell: espera 1.4 seg…"]
+      S3C{"80% éxito\n20% error"}
+      S3D["KYC_SUCCESS\ncurrentStep → 3"]
+      S3E["KYC_ERROR\n→ Reintentar"]
+      S3 --> S3B --> S3C
+      S3C -->|Éxito| S3D
+      S3C -->|Error| S3E
+      S3E -->|Reintenta| S3B
+    end
+
+    S3D --> S4
+
+    subgraph STEP4["Paso 4 — mf-documents  (Documentos)"]
+      S4["Clic en Subir documento"]
+      S4B["Shell: espera 1.4 seg…"]
+      S4C{"80% éxito\n20% error"}
+      S4D["DOCUMENT_UPLOAD_SUCCESS\ncurrentStep → 4"]
+      S4E["DOCUMENT_UPLOAD_ERROR\n→ Reintentar"]
+      S4 --> S4B --> S4C
+      S4C -->|Éxito| S4D
+      S4C -->|Error| S4E
+      S4E -->|Reintenta| S4B
+    end
+
+    S4D --> S5
+
+    subgraph STEP5["Paso 5 — mf-credit  (Resultado)"]
+      S5["Clic en Enviar a revisión"]
+      S5B["Shell: espera 1.6 seg…"]
+      S5C{"65% aprobado\n35% rechazado"}
+      S5D["✅ Solicitud aprobada"]
+      S5E["❌ Solicitud rechazada"]
+      S5 --> S5B --> S5C
+      S5C -->|Aprobado| S5D
+      S5C -->|Rechazado| S5E
+    end
+
+    S5D --> DONE([" Fin del flujo"])
+    S5E --> RESET["RESET_APPLICATION\n→ volver al inicio"]
+    RESET --> START
+
+    classDef step fill:#1e293b,stroke:#475569,color:#e2e8f0
+    classDef success fill:#14532d,stroke:#22c55e,color:#dcfce7
+    classDef error fill:#450a0a,stroke:#ef4444,color:#fee2e2
+    classDef terminal fill:#0c4a6e,stroke:#0ea5e9,color:#e0f2fe
+
+    class S1,S1A,S2,S2A,S3,S3B,S3C,S4,S4B,S4C,S5,S5B,S5C step
+    class S3D,S4D,S5D success
+    class S3E,S4E,S5E error
+    class START,DONE,RESET terminal
+      </div>
+    </div>
+  </div>
+
+  <!-- 5. Estructura de componentes del Shell -->
+  <div class="card">
+    <div class="card-header">
+      <div class="num">5</div>
+      <div>
+        <h2>Árbol de componentes del Shell</h2>
+        <p>Jerarquía interna del shell y dónde se montan los microfrontends</p>
+      </div>
+    </div>
+    <div class="card-body">
+      <div class="mermaid">
+graph TD
+    APP["App.jsx\n(raíz, lee LenderaStore)"]
+
+    APP --> STEPPER["Stepper.jsx\n4 pasos visuales"]
+    APP --> MAIN["Área de contenido principal\n(cambia según currentStep)"]
+    APP --> SIDEBAR["Sidebar"]
+
+    MAIN --> MFWRAP["MFWrapper.jsx\nErrorBoundary + Suspense"]
+
+    MFWRAP -->|"step 1"| MF1["&lt;LoginPanel /&gt;\nmfAuth/./LoginPanel"]
+    MFWRAP -->|"step 2"| MF2["&lt;PersonalDataStep /&gt;\nmfOnboarding/./PersonalDataStep"]
+    MFWRAP -->|"step 3"| MF3["&lt;KycStep /&gt;\nmfKyc/./KycStep"]
+    MFWRAP -->|"step 4"| MF4["&lt;DocumentsStep /&gt;\nmfDocuments/./DocumentsStep"]
+    MFWRAP -->|"step 5"| MF5["&lt;ResultStep /&gt;\nmfCredit/./ResultStep"]
+
+    SIDEBAR --> SUMMARY["SummaryPanel.jsx\nInfo de arquitectura"]
+    SIDEBAR --> NOTIF["NotificationList.jsx\nÚltimos 5 eventos"]
+    SIDEBAR --> INSPECT["FluxInspector.jsx\nEstado JSON en tiempo real"]
+
+    subgraph FLUX["Capa Flux (fuera del árbol visual)"]
+      direction LR
+      LS["LenderaStore"] --> DIS["Dispatcher"]
+      DIS --> LA["lenderaActions"]
+      LA --> DIS
+      EB["eventBridge.js"] --> DIS
+      LS --> EB
+    end
+
+    APP -.->|"useLenderaStore()"| LS
+
+    classDef shell fill:#1e3a5f,stroke:#3b82f6,color:#e0f2fe
+    classDef mf fill:#1a2e1a,stroke:#22c55e,color:#dcfce7
+    classDef flux fill:#2d1b4e,stroke:#a855f7,color:#f3e8ff
+    classDef ui fill:#1e293b,stroke:#475569,color:#e2e8f0
+
+    class APP,STEPPER,MAIN,SIDEBAR,MFWRAP,SUMMARY,NOTIF,INSPECT shell
+    class MF1,MF2,MF3,MF4,MF5 mf
+    class LS,DIS,LA,EB flux
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  mermaid.initialize({
+    startOnLoad: true,
+    theme: 'dark',
+    themeVariables: {
+      primaryColor: '#1e3a5f',
+      primaryTextColor: '#e2e8f0',
+      primaryBorderColor: '#3b82f6',
+      lineColor: '#64748b',
+      secondaryColor: '#1a2e1a',
+      tertiaryColor: '#2d1b4e',
+      background: '#0f172a',
+      mainBkg: '#1e293b',
+      nodeBorder: '#475569',
+      clusterBkg: '#0f172a',
+      titleColor: '#f1f5f9',
+      edgeLabelBackground: '#1e293b',
+      actorBkg: '#1e293b',
+      actorBorder: '#3b82f6',
+      actorTextColor: '#e2e8f0',
+      actorLineColor: '#475569',
+      signalColor: '#94a3b8',
+      signalTextColor: '#e2e8f0',
+      labelBoxBkgColor: '#1e293b',
+      labelBoxBorderColor: '#475569',
+      labelTextColor: '#e2e8f0',
+      loopTextColor: '#e2e8f0',
+      noteBorderColor: '#475569',
+      noteBkgColor: '#0f172a',
+      noteTextColor: '#94a3b8',
+      activationBorderColor: '#3b82f6',
+      activationBkgColor: '#1e3a5f',
+      sequenceNumberColor: '#0f172a'
+    },
+    flowchart: { curve: 'basis', useMaxWidth: true },
+    sequence: { useMaxWidth: true, mirrorActors: false, wrap: true }
+  });
+</script>
+</body>
+</html>

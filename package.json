@@ -1,19 +1,17 @@
 {
-  "name": "lendera-flux-react",
+  "name": "lendera-microfrontends-root",
   "private": true,
-  "version": "1.0.0",
+  "version": "2.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "preview": "vite preview"
-  },
-  "dependencies": {
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1"
+    "dev:monolith": "vite",
+    "build:monolith": "vite build",
+    "install:all": "npm install --prefix shell && npm install --prefix microfrontends/mf-auth && npm install --prefix microfrontends/mf-onboarding && npm install --prefix microfrontends/mf-kyc && npm install --prefix microfrontends/mf-documents && npm install --prefix microfrontends/mf-credit",
+    "build:mfs": "npm run build --prefix microfrontends/mf-auth && npm run build --prefix microfrontends/mf-onboarding && npm run build --prefix microfrontends/mf-kyc && npm run build --prefix microfrontends/mf-documents && npm run build --prefix microfrontends/mf-credit",
+    "start": "concurrently -n \"AUTH,ONB,KYC,DOCS,CREDIT,SHELL\" -c \"blue,green,yellow,magenta,cyan,red\" \"npm run preview --prefix microfrontends/mf-auth\" \"npm run preview --prefix microfrontends/mf-onboarding\" \"npm run preview --prefix microfrontends/mf-kyc\" \"npm run preview --prefix microfrontends/mf-documents\" \"npm run preview --prefix microfrontends/mf-credit\" \"npm run dev --prefix shell\"",
+    "dev": "npm run build:mfs && npm run start"
   },
   "devDependencies": {
-    "@vitejs/plugin-react": "^4.3.1",
-    "vite": "^5.4.10"
+    "concurrently": "^8.2.2"
   }
 }
